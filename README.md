@@ -2,7 +2,7 @@
 
 **Free prompt injection protection for OpenClaw agents.**
 
-Guardian Shield scans incoming messages and documents for prompt injection attacks using 80 curated regex patterns and an optional ML model. Runs entirely local — no API calls, no cloud dependency.
+Guardian Shield scans incoming messages and documents for prompt injection attacks using 100 curated regex patterns and an optional ML model. Runs entirely local — no API calls, no cloud dependency.
 
 [![License](https://img.shields.io/badge/license-source--available-blue)](LICENSE)
 [![Patterns](https://img.shields.io/badge/patterns-80%20free-green)]()
@@ -42,7 +42,7 @@ User message / document / web fetch
         ↓
   [Chunking] (~800 chars per chunk)
         ↓
-  [Regex Scan] → 80 patterns (free) or 258 (Home)
+  [Regex Scan] → 100 patterns (free) or 258 (Home)
         ↓ (if regex flags something OR thorough mode)
   [Ward ML Scan] → ONNX model, <5ms CPU
         ↓
@@ -178,7 +178,7 @@ Guardian Shield is the free, local-first tier of the **FAS Guardian** platform.
 
 | Product | What | Price |
 |---------|------|-------|
-| **Guardian Shield** (this) | Local scanning, 80 patterns | Free |
+| **Guardian Shield** (this) | Local scanning, 100 patterns | Free |
 | **Guardian Basic API** | Cloud API, full V1 regex | $19.99/mo |
 | **Guardian Pro API** | Cloud API, ML + Arc Engine | $49.99/mo |
 | **Guardian Enterprise** | Custom training, on-prem | Contact us |

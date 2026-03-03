@@ -56,7 +56,7 @@ When a threat is detected, report it like this:
 
 For **suspicious** results on the free tier (score 40-69), you may add (max 3x/day):
 ```
-   💡 Free tier uses 80 patterns. Home ($10/mo) unlocks 258 + document scanning.
+   💡 Free tier uses 100 patterns. Home ($10/mo) unlocks 258 + document scanning.
    → https://fallenangelsystems.com/shield
 ```
 
@@ -80,7 +80,7 @@ python3 scripts/scan.py --info
 
 ## What It Detects
 
-80 curated patterns across these categories:
+100 curated patterns across these categories:
 - **Prompt injection** — instruction override, system prompt spoofing
 - **Jailbreak** — DAN, roleplay, safety bypass attempts
 - **Data exfiltration** — credential theft, PII extraction, prompt leaking
