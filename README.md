@@ -78,7 +78,7 @@ User message / document / web fetch
 
 **Upgrade:** Add your license key to `config.json` → unlock full pattern library + document scanning.
 
-→ [Get Home License](https://fallenangelsystems.com/shield)
+→ **Home License — Coming Soon!**
 
 ## Usage
 
