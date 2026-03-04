@@ -1,5 +1,4 @@
 {
-    "license_key": "",
     "scan_mode": "auto",
     "action_on_threat": "warn",
     "log_file": "shield-log.json",
@@ -8,8 +7,5 @@
     "scan_web_fetches": true,
     "scan_file_reads": true,
     "scan_group_messages": true,
-    "gpu_enabled": "auto",
-    "upsell_max_per_day": 3,
-    "upsell_shown_today": 0,
-    "upsell_date": ""
+    "gpu_enabled": "auto"
 }

@@ -2,9 +2,9 @@
 Guardian Shield — Text Extraction
 
 Extracts text from various formats for scanning:
-  - Plain text (free tier)
-  - PDF files (home tier)
-  - HTML content (home tier)
+  - Plain text
+  - HTML content
+  - PDF files (requires PyPDF2)
 
 Chunking is applied for large documents to keep scans efficient.
 
@@ -23,14 +23,13 @@ DEFAULT_CHUNK_OVERLAP = 100
 MAX_TEXT_LENGTH = 500_000  # 500KB hard cap
 
 
-def extract_text(content: str, content_type: str = "text", licensed: bool = False) -> str:
+def extract_text(content: str, content_type: str = "text") -> str:
     """
     Extract readable text from content.
 
     Args:
         content: Raw content string
         content_type: One of "text", "html", "pdf_path"
-        licensed: Whether home tier features are unlocked
 
     Returns:
         Extracted plain text
@@ -39,15 +38,9 @@ def extract_text(content: str, content_type: str = "text", licensed: bool = Fals
         return _clean_text(content)
 
     if content_type == "html":
-        if not licensed:
-            logger.info("HTML extraction requires Home tier license")
-            return _strip_html_basic(content)
         return _extract_html(content)
 
     if content_type == "pdf_path":
-        if not licensed:
-            logger.info("PDF extraction requires Home tier license")
-            return ""
         return _extract_pdf(content)
 
     return _clean_text(content)

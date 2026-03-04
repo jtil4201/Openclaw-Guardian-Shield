@@ -1,10 +1,9 @@
 """
 Guardian Shield — Threat Detection Patterns
 
-Free tier: 80 curated regex patterns from FAS Lieutenant.
-Home tier: Full 258 patterns (unlocked via license key).
+100 curated regex patterns from FAS Lieutenant.
 
-Categories (free tier distribution):
+Categories:
   - 15 instruction override / prompt injection
   - 10 system prompt extraction
   - 10 jailbreak / role manipulation
@@ -383,36 +382,16 @@ FREE_PATTERNS: List[Pattern] = [
         "Leetspeak variant of show system prompt."),
 ]
 
-# ============================================================================
-# HOME TIER — Additional 178 patterns (unlocked via license key)
-# Total with free: 258 patterns
-# ============================================================================
-# Home tier patterns are loaded from an encrypted/obfuscated data file
-# to prevent easy extraction. They are only activated when a valid
-# license key is present in config.json.
-#
-# For the ClawhHub distribution, home patterns are NOT included.
-# They are fetched from the FAS API on license validation.
-# ============================================================================
-
-HOME_PATTERNS: List[Pattern] = []  # Populated at runtime via license activation
-
-
-def get_patterns(licensed: bool = False) -> List[Pattern]:
-    """Get available patterns based on license status."""
-    if licensed and HOME_PATTERNS:
-        return FREE_PATTERNS + HOME_PATTERNS
+def get_patterns() -> List[Pattern]:
+    """Get all available patterns."""
     return FREE_PATTERNS
 
 
-def get_pattern_count(licensed: bool = False) -> int:
+def get_pattern_count() -> int:
     """Get count of available patterns."""
-    if licensed and HOME_PATTERNS:
-        return len(FREE_PATTERNS) + len(HOME_PATTERNS)
     return len(FREE_PATTERNS)
 
 
-def get_categories(licensed: bool = False) -> List[str]:
+def get_categories() -> List[str]:
     """Get unique categories from available patterns."""
-    patterns = get_patterns(licensed)
-    return sorted(set(p.category for p in patterns))
+    return sorted(set(p.category for p in FREE_PATTERNS))

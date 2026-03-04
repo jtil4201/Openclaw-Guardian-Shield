@@ -3,7 +3,7 @@
 Guardian Shield — Main Scanner
 
 Scans text for prompt injection attacks using:
-  1. Regex pattern matching (80 free / 258 licensed)
+  1. Regex pattern matching (100 patterns)
   2. Ward ML model (ONNX, TF-IDF + LogReg)
 
 Usage:
@@ -36,7 +36,6 @@ if _SCRIPT_DIR not in sys.path:
 
 from patterns import Pattern, ThreatLevel, get_patterns, get_pattern_count
 from extract import extract_text, chunk_text
-from license import is_licensed
 
 logger = logging.getLogger("guardian-shield")
 
@@ -70,8 +69,6 @@ class ScanResult:
     patterns_used: int = 0
     ml_available: bool = False
     ml_score: Optional[float] = None
-    cloud_available: bool = False
-    cloud_score: Optional[int] = None
     tier: str = "free"
 
     def to_dict(self) -> dict:
@@ -125,59 +122,6 @@ def _load_config() -> dict:
 
 
 # ============================================================================
-# Cloud Scan (Pro Tier)
-# ============================================================================
-
-_CLOUD_API_URL = "https://api.fallenangelsystems.com/v2/scan"
-_CLOUD_TIMEOUT = 5  # seconds
-
-
-def _cloud_scan(text: str, api_key: str) -> Optional[dict]:
-    """
-    Send text to FAS Guardian V2 cloud API for ML scanning.
-    Pro tier only — requires valid fsg_pro_ license key.
-
-    Returns dict with: threat, score, category, details
-    Returns None on failure (graceful degradation).
-    """
-    import urllib.request
-    import urllib.error
-
-    payload = json.dumps({
-        "text": text[:5000],  # Cap at 5K chars for API
-        "source": "guardian-shield",
-    }).encode()
-
-    req = urllib.request.Request(
-        _CLOUD_API_URL,
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "X-Shield-Version": "1.0.0",
-        },
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=_CLOUD_TIMEOUT) as resp:
-            data = json.loads(resp.read().decode())
-            return {
-                "threat": data.get("threat", False),
-                "score": data.get("score", 0),
-                "category": data.get("top_category", "unknown"),
-                "model": data.get("model", "spectre"),
-                "arc_matches": data.get("arc_matches", 0),
-            }
-    except urllib.error.HTTPError as e:
-        logger.debug(f"Cloud scan HTTP error: {e.code}")
-        return None
-    except Exception as e:
-        logger.debug(f"Cloud scan failed (degrading to local): {e}")
-        return None
-
-
-# ============================================================================
 # Core Scanner
 # ============================================================================
 
@@ -196,8 +140,7 @@ def scan_text(text: str, config: Optional[dict] = None) -> ScanResult:
         config = _load_config()
 
     start_time = time.time()
-    licensed = is_licensed()
-    patterns = get_patterns(licensed)
+    patterns = get_patterns()
     threats: List[ThreatMatch] = []
 
     # --- Phase 1: Regex Scanning ---
@@ -251,45 +194,6 @@ def scan_text(text: str, config: Optional[dict] = None) -> ScanResult:
         except Exception as e:
             logger.debug(f"Ward ML error: {e}")
 
-    # --- Phase 3: Pro Cloud Scan (FAS Guardian V2 API) ---
-    # Only activates with a valid Pro license key. Triggers on borderline
-    # local scores or when scan_mode is "thorough".
-    cloud_score = None
-    cloud_available = False
-
-    try:
-        from license import validate
-        license_key = config.get("license_key", "")
-        if license_key.startswith("fsg_pro_"):
-            license_result = validate(license_key)
-            if license_result.get("valid") and license_result.get("tier") == "pro":
-                # Only call cloud API on borderline scores or thorough mode
-                local_max = max((t.score for t in threats), default=0)
-                run_cloud = (
-                    scan_mode == "thorough" or
-                    (30 <= local_max <= 70) or
-                    (scan_mode == "auto" and not threats)  # nothing caught locally
-                )
-                if run_cloud:
-                    cloud_result = _cloud_scan(text, license_key)
-                    if cloud_result:
-                        cloud_available = True
-                        cloud_score = cloud_result.get("score", 0)
-                        cloud_threat = cloud_result.get("threat", False)
-                        if cloud_threat and cloud_score > 50:
-                            threats.append(ThreatMatch(
-                                pattern_id="cloud-v2",
-                                pattern_name="FAS Guardian V2 Cloud",
-                                category=cloud_result.get("category", "cloud_detection"),
-                                severity="CRITICAL" if cloud_score > 80 else "HIGH" if cloud_score > 60 else "MEDIUM",
-                                score=cloud_score,
-                                matched_text=text[:200],
-                                description=f"FAS Guardian V2 cloud scan detected threat (score: {cloud_score}/100, model: Spectre+Arc)",
-                                source="cloud",
-                            ))
-    except Exception as e:
-        logger.debug(f"Cloud scan check error: {e}")
-
     # --- Scoring ---
     if threats:
         # Take the highest severity score
@@ -303,10 +207,6 @@ def scan_text(text: str, config: Optional[dict] = None) -> ScanResult:
         # Boost if ML agrees
         if ml_score and ml_score > 0.7:
             max_score = min(100, max_score + 10)
-
-        # Boost if cloud agrees
-        if cloud_score and cloud_score > 50:
-            max_score = min(100, max_score + 15)
     else:
         max_score = 0
         categories = []
@@ -334,9 +234,7 @@ def scan_text(text: str, config: Optional[dict] = None) -> ScanResult:
         patterns_used=len(patterns),
         ml_available=ml_available,
         ml_score=ml_score,
-        cloud_available=cloud_available,
-        cloud_score=cloud_score,
-        tier="pro" if cloud_available else ("home" if licensed else "free"),
+        tier="free",
     )
 
 
@@ -356,14 +254,13 @@ def scan_document(content: str, content_type: str = "text",
     if config is None:
         config = _load_config()
 
-    licensed = is_licensed()
-    text = extract_text(content, content_type, licensed)
+    text = extract_text(content, content_type)
 
     if not text:
         return ScanResult(
             threat=False, score=0, verdict="clean",
-            patterns_used=get_pattern_count(licensed),
-            tier="home" if licensed else "free",
+            patterns_used=get_pattern_count(),
+            tier="free",
         )
 
     chunks = chunk_text(text)
@@ -418,10 +315,10 @@ def scan_document(content: str, content_type: str = "text",
         threats=deduped,
         categories=categories,
         scan_time_ms=total_time,
-        patterns_used=get_pattern_count(licensed),
+        patterns_used=get_pattern_count(),
         ml_available=ml_available,
         ml_score=max_ml_score,
-        tier="home" if licensed else "free",
+        tier="free",
     )
 
 
@@ -443,7 +340,7 @@ def _format_result(result: ScanResult, verbose: bool = False) -> str:
 
     lines = [
         f"\n{icon} Guardian Shield — {label} (score: {result.score}/100)",
-        f"   Patterns: {result.patterns_used} ({result.tier}) | ML: {'yes' if result.ml_available else 'no'} | Time: {result.scan_time_ms:.1f}ms",
+        f"   Patterns: {result.patterns_used} | ML: {'yes' if result.ml_available else 'no'} | Time: {result.scan_time_ms:.1f}ms",
     ]
 
     if result.threats:
@@ -456,11 +353,6 @@ def _format_result(result: ScanResult, verbose: bool = False) -> str:
 
     if result.ml_score is not None:
         lines.append(f"   ML confidence: {result.ml_score:.2%}")
-
-    if not is_licensed() and result.verdict == "suspicious":
-        lines.append("")
-        lines.append("   💡 Free tier: 80 patterns. Upgrade to Home ($10/mo) for 258 + document scanning.")
-        lines.append("   → https://fallenangelsystems.com/shield")
 
     return "\n".join(lines)
 
@@ -485,10 +377,8 @@ def main():
     args = parser.parse_args()
 
     if args.info:
-        licensed = is_licensed()
         print(f"Guardian Shield Scanner")
-        print(f"  Tier: {'Home' if licensed else 'Free'}")
-        print(f"  Patterns: {get_pattern_count(licensed)}")
+        print(f"  Patterns: {get_pattern_count()}")
         try:
             from ward import get_model_info
             info = get_model_info()
